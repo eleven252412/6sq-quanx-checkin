@@ -12,8 +12,11 @@
 - `6sq-checkin-quanx.js`：二合一脚本（抓 cookie + 定时签到）
 
 ## 一键导入
-### 单独导入（6SQ）
-- `https://raw.githubusercontent.com/eleven252412/6sq-quanx-checkin/main/quanx-import.conf`
+### QuanX 真正一键导入（推荐）
+- 6SQ：`quantumult-x:///add-resource?remote-resource=https%3A%2F%2Fraw.githubusercontent.com%2Feleven252412%2F6sq-quanx-checkin%2Fmain%2Fquanx-import.conf,tag=6SQ%E7%AD%BE%E5%88%B0&img-url=https%3A%2F%2Fraw.githubusercontent.com%2Fgithub%2Fexplore%2Fmain%2Ftopics%2Fquantumult-x%2Fquantumult-x.png`
+
+### 原始配置文件链接
+- 6SQ：`https://raw.githubusercontent.com/eleven252412/6sq-quanx-checkin/main/quanx-import.conf`
 
 ## QuanX 配置
 ### 1. 抓取 cookie
