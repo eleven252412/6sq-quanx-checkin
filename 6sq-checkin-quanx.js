@@ -8,7 +8,8 @@ const CONFIG = {
   cookieKey: '6sq_qiandao_cookie',
   captureNotifyKey: '6sq_qiandao_cookie_last_notify',
   captureNotifyCooldownMs: 15000,
-  mobile: ''
+  mobile: '',
+  renewUrl: 'https://www.6sq.net/qiandao/'
 };
 
 function readCookieStore() {
@@ -104,8 +105,9 @@ function extractUsefulCookie(rawCookie) {
   return stringifyCookieJar(picked);
 }
 
-function notify(title, subtitle, body) {
-  $notify(title, subtitle || '', body || '');
+function notify(title, subtitle, body, url) {
+  const options = url ? { 'open-url': url } : undefined;
+  $notify(title, subtitle || '', body || '', options);
 }
 
 function shouldNotifyCapture() {
@@ -219,7 +221,7 @@ function parseResult(raw) {
   return { status: 'unknown', detail: msg || raw.slice(0, 200) };
 }
 
-function captureCookieMode() {
+async function captureCookieMode() {
   const req = typeof $request !== 'undefined' ? $request : null;
   if (!req || !req.headers) {
     return false;
@@ -252,22 +254,30 @@ function captureCookieMode() {
     return true;
   }
   const changed = saveCookieStore(usefulCookie);
-  if (changed && shouldNotifyCapture()) {
-    notify('6SQ Cookie 抓取', '成功', '已保存到 QuanX 本地存档');
+  if (path.startsWith('/qiandao')) {
+    try {
+      const result = await runCheckinWithCookie(usefulCookie);
+      const subtitle =
+        result.status === 'success'
+          ? 'Cookie 已刷新并签到成功'
+          : result.status === 'already'
+            ? 'Cookie 已刷新，今天已签'
+            : result.status === 'cookie_invalid'
+              ? 'Cookie 已刷新但仍登录失效'
+              : 'Cookie 已刷新，签到状态异常';
+      notify('6SQ Cookie 抓取', subtitle, result.lines.join('\n'), result.status === 'cookie_invalid' ? CONFIG.renewUrl : undefined);
+    } catch (e) {
+      notify('6SQ Cookie 抓取', '已保存，但自动签到失败', `请稍后手动执行任务：${e.message || e}`, CONFIG.renewUrl);
+    }
+  } else if (changed && shouldNotifyCapture()) {
+    notify('6SQ Cookie 抓取', '成功', '已保存到 QuanX 本地存档；打开签到页可立即补签', CONFIG.renewUrl);
   }
   $done({});
   return true;
 }
 
-async function main() {
-  if (captureCookieMode()) return;
-
-  const storedCookie = readCookieStore();
-  if (!storedCookie) {
-    throw new Error('当前没有本地 cookie，请先在 QuanX 里打开 6sq.net 登录并抓取 cookie');
-  }
-
-  const state = { cookie: storedCookie };
+async function runCheckinWithCookie(cookie) {
+  const state = { cookie };
   const pageHtml = await fetchText(state, CONFIG.pageUrl);
   if (looksLoggedOut(pageHtml)) {
     throw new Error('本地 cookie 已失效，请重新打开 6sq.net 登录页抓取新 cookie');
@@ -281,6 +291,23 @@ async function main() {
   const resultRaw = await postForm(state, CONFIG.signUrl, { uid: user.uid });
   const result = parseResult(resultRaw);
   const name = user.username || CONFIG.mobile || 'unknown';
+  const lines = [`账号：${name}`, `UID：${user.uid}`, result.detail];
+  console.log(`RESULT: ${result.status.toUpperCase()}`);
+  console.log(`UID: ${user.uid}`);
+  console.log(`USERNAME: ${name}`);
+  console.log(`DETAIL: ${result.detail}`);
+  return { status: result.status, detail: result.detail, user, name, lines };
+}
+
+async function main() {
+  if (await captureCookieMode()) return;
+
+  const storedCookie = readCookieStore();
+  if (!storedCookie) {
+    throw new Error('当前没有本地 cookie，请先在 QuanX 里打开 6sq.net 登录并抓取 cookie');
+  }
+
+  const result = await runCheckinWithCookie(storedCookie);
   const subtitle =
     result.status === 'success'
       ? '签到成功'
@@ -290,20 +317,17 @@ async function main() {
           ? '登录失效'
           : '状态异常';
 
-  const lines = [`账号：${name}`, `UID：${user.uid}`, result.detail];
-  notify('6SQ 签到', subtitle, lines.join('\n'));
-  console.log(`RESULT: ${result.status.toUpperCase()}`);
-  console.log(`UID: ${user.uid}`);
-  console.log(`USERNAME: ${name}`);
-  console.log(`DETAIL: ${result.detail}`);
+  notify('6SQ 签到', subtitle, result.lines.join('\n'), result.status === 'cookie_invalid' ? CONFIG.renewUrl : undefined);
 }
 
 main()
   .catch((error) => {
-    const msg = `签到异常：${error.message || error}`;
+    const detail = error.message || error;
+    const msg = `签到异常：${detail}`;
     console.log('RESULT: ERROR');
-    console.log(`DETAIL: ${error.message || error}`);
-    notify('6SQ 签到', '异常', msg);
+    console.log(`DETAIL: ${detail}`);
+    const needRenew = String(detail).includes('cookie') || String(detail).includes('登录') || String(detail).includes('没有本地');
+    notify('6SQ 签到', needRenew ? '登录失效，点通知重新抓取' : '异常', msg, needRenew ? CONFIG.renewUrl : undefined);
   })
   .finally(() => {
     if (typeof $request === 'undefined') $done();

@@ -7,6 +7,8 @@
 - 通过 QuanX `script-request-header` 在你登录网页时自动抓取 cookie
 - cookie 仅保存在 QuanX 本地存储
 - 定时任务读取本地 cookie 自动签到
+- cookie 失效通知会绑定 `https://www.6sq.net/qiandao/`，点击通知可直达签到页重新抓取 cookie
+- 点击通知打开签到页后，脚本会在抓到新 cookie 时立即尝试补签
 
 ## 文件
 - `6sq-checkin-quanx.js`：二合一脚本（抓 cookie + 定时签到）
@@ -41,7 +43,8 @@
 ## 说明
 - 站点签到接口：`POST https://www.6sq.net/qiandao/ajax/send/`
 - 页面里的“手机用户专用签到”和普通签到走同一接口
-- 如果本地 cookie 失效，重新网页登录并打开签到页即可刷新 cookie
+- 如果本地 cookie 失效，通知会带可点击链接，点开后直接进入 `https://www.6sq.net/qiandao/` 重新抓 cookie
+- 如果 QuanX/Safari 里仍是登录态，打开签到页会自动保存新 cookie 并立即补签；如果网页也已退出登录，则需要先重新登录 6SQ
 - 脚本不会上传 cookie 到外部服务
 
 ## 敏感信息检查
