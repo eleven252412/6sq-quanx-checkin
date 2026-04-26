@@ -221,6 +221,28 @@ function parseResult(raw) {
   return { status: 'unknown', detail: msg || raw.slice(0, 200) };
 }
 
+function parseTodayCoins(detail) {
+  const match = String(detail || '').match(/([0-9]+)\s*(?:个)?\s*(?:6SQ币|积分|金币)/i);
+  return match ? match[1] : '未知';
+}
+
+function parseTotalCoins(html) {
+  const text = cleanText(html);
+  const patterns = [
+    /(?:总积分|积分|6SQ币|金币|余额)[^0-9]{0,12}([0-9]+)/i,
+    /([0-9]+)\s*(?:6SQ币|积分|金币)/i
+  ];
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match) return match[1];
+  }
+  return '未知';
+}
+
+function buildMinimalSuccessText(result, pageHtml) {
+  return `签到成功 | 今日获取${parseTodayCoins(result.detail)}6SQ币 | 总积分${parseTotalCoins(pageHtml)}`;
+}
+
 async function captureCookieMode() {
   const req = typeof $request !== 'undefined' ? $request : null;
   if (!req || !req.headers) {
@@ -258,14 +280,13 @@ async function captureCookieMode() {
     try {
       const result = await runCheckinWithCookie(usefulCookie);
       const subtitle =
-        result.status === 'success'
-          ? 'Cookie 已刷新并签到成功'
-          : result.status === 'already'
-            ? 'Cookie 已刷新，今天已签'
-            : result.status === 'cookie_invalid'
-              ? 'Cookie 已刷新但仍登录失效'
-              : 'Cookie 已刷新，签到状态异常';
-      notify('6SQ Cookie 抓取', subtitle, result.lines.join('\n'), result.status === 'cookie_invalid' ? CONFIG.renewUrl : undefined);
+        (result.status === 'success' || result.status === 'already')
+          ? '签到成功'
+          : result.status === 'cookie_invalid'
+            ? 'Cookie 已刷新但仍登录失效'
+            : 'Cookie 已刷新，签到状态异常';
+      const body = (result.status === 'success' || result.status === 'already') ? result.minimal : result.lines.join('\n');
+      notify('6SQ Cookie 抓取', subtitle, body, result.status === 'cookie_invalid' ? CONFIG.renewUrl : undefined);
     } catch (e) {
       notify('6SQ Cookie 抓取', '已保存，但自动签到失败', `请稍后手动执行任务：${e.message || e}`, CONFIG.renewUrl);
     }
@@ -292,11 +313,12 @@ async function runCheckinWithCookie(cookie) {
   const result = parseResult(resultRaw);
   const name = user.username || CONFIG.mobile || 'unknown';
   const lines = [`账号：${name}`, `UID：${user.uid}`, result.detail];
+  const minimal = buildMinimalSuccessText(result, pageHtml);
   console.log(`RESULT: ${result.status.toUpperCase()}`);
   console.log(`UID: ${user.uid}`);
   console.log(`USERNAME: ${name}`);
   console.log(`DETAIL: ${result.detail}`);
-  return { status: result.status, detail: result.detail, user, name, lines };
+  return { status: result.status, detail: result.detail, user, name, lines, minimal };
 }
 
 async function main() {
@@ -317,7 +339,8 @@ async function main() {
           ? '登录失效'
           : '状态异常';
 
-  notify('6SQ 签到', subtitle, result.lines.join('\n'), result.status === 'cookie_invalid' ? CONFIG.renewUrl : undefined);
+  const body = (result.status === 'success' || result.status === 'already') ? result.minimal : result.lines.join('\n');
+  notify('6SQ 签到', result.status === 'success' || result.status === 'already' ? '签到成功' : subtitle, body, result.status === 'cookie_invalid' ? CONFIG.renewUrl : undefined);
 }
 
 main()
