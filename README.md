@@ -30,7 +30,7 @@
 ### 2. 定时签到
 ```ini
 [task_local]
-0 8 * * * https://raw.githubusercontent.com/eleven252412/6sq-quanx-checkin/main/6sq-checkin-quanx.js, tag=6SQ签到, enabled=true
+0 6 * * * https://raw.githubusercontent.com/eleven252412/6sq-quanx-checkin/main/6sq-checkin-quanx.js, tag=6SQ签到, enabled=true
 ```
 
 ## 使用步骤
