@@ -240,7 +240,7 @@ function parseTotalCoins(html) {
 }
 
 function buildMinimalSuccessText(result, pageHtml) {
-  return `签到成功 | 今日获取${parseTodayCoins(result.detail)}6SQ币 | 总积分${parseTotalCoins(pageHtml)}`;
+  return `签到成功 | ${parseTodayCoins(result.detail)} | ${parseTotalCoins(pageHtml)}`;
 }
 
 async function captureCookieMode() {
